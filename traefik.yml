@@ -1,0 +1,12 @@
+api:
+  dashboard: true
+  insecure: true
+
+providers:
+  docker:
+    exposedByDefault: false
+
+experimental:
+  localPlugins:
+    example:
+      moduleName: github.com/craigbrogle/traefik-s3-plugin

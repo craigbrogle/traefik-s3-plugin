@@ -1,0 +1,40 @@
+services:
+  traefik:
+    image: traefik:v3.0
+    ports:
+      # HTTP
+      - "80:80"
+      # Web UI, enabled by --api.insecure=true
+      - "8080:8080"
+    privileged: true
+    working_dir: /app
+    volumes:
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Default location
+      - ./traefik.yml:/etc/traefik/traefik.yml
+      # Plugin sources
+      - .:/app/plugins-local/src/github.com/craigbrogle/traefik-s3-plugin
+      # Local directory
+      - ./storage:/app/aws-local-directory
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.my-router.service=noop@internal
+      - traefik.http.routers.my-router.rule=Host(`traefik.docker.localhost`)
+      - traefik.http.routers.my-router.middlewares=my-aws
+      - traefik.http.middlewares.my-aws.plugin.aws.type=local
+      - traefik.http.middlewares.my-aws.plugin.aws.directory=aws-local-directory
+
+  whoami:
+    # Exposes an API to show its IP address
+    image: traefik/whoami
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.iam.rule=Host(`whoami.docker.localhost`)
+
+  curl:
+    image: curlimages/curl:latest
+    command:
+      - -HHost:whoami.docker.localhost
+      - http://traefik
+      - -i
