@@ -14,27 +14,15 @@ services:
       # Default location
       - ./traefik.yml:/etc/traefik/traefik.yml
       # Plugin sources
-      - .:/app/plugins-local/src/github.com/craigbrogle/traefik-s3-plugin
+      - .:/app/plugins-local/src/github.com/craigbrogle/traefik-s3-plugin/
       # Local directory
       - ./storage:/app/aws-local-directory
     labels:
       - traefik.enable=true
       - traefik.http.routers.my-router.service=noop@internal
       - traefik.http.routers.my-router.rule=Host(`traefik.docker.localhost`)
-      - traefik.http.routers.my-router.middlewares=my-aws
-      - traefik.http.middlewares.my-aws.plugin.aws.type=local
-      - traefik.http.middlewares.my-aws.plugin.aws.directory=aws-local-directory
-
-  whoami:
-    # Exposes an API to show its IP address
-    image: traefik/whoami
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.iam.rule=Host(`whoami.docker.localhost`)
-
-  curl:
-    image: curlimages/curl:latest
-    command:
-      - -HHost:whoami.docker.localhost
-      - http://traefik
-      - -i
+      - traefik.http.routers.my-router.middlewares=add-index-suffix,my-s3
+      - traefik.http.middlewares.add-index-suffix.replacePathRegex.regex=^(.*/)$$
+      - traefik.http.middlewares.add-index-suffix.replacePathRegex.replacement=$${1}index.html
+      - traefik.http.middlewares.my-s3.plugin.traefik-s3-plugin.service=local
+      - traefik.http.middlewares.my-s3.plugin.traefik-s3-plugin.directory=aws-local-directory

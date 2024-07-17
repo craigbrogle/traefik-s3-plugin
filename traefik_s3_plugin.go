@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/craigbrogle/traefik-s3-plugin/local"
 	"github.com/craigbrogle/traefik-s3-plugin/log"
@@ -22,10 +23,12 @@ type Config struct {
 	Directory string
 
 	// S3
-	EndpointUrl string
-	Region      string
-	Bucket      string
-	Prefix      string
+	AccessKeyId     string
+	SecretAccessKey string
+	Region          string
+	EndpointUrl     string
+	Bucket          string
+	Prefix          string
 }
 
 func CreateConfig() *Config {
@@ -42,16 +45,32 @@ func New(_ context.Context, next http.Handler, config *Config, name string) (htt
 	plugin := &S3Plugin{next: next, name: name}
 	switch config.Service {
 	case "s3":
-		var err error
-		plugin.service, err = s3.New(config.EndpointUrl, config.Region, config.Bucket, config.Prefix, config.TimeoutSeconds)
-		return plugin, err
+		if config.AccessKeyId == "" {
+			log.Info("AccessKeyId not configured, using AWS_ACCESS_KEY_ID")
+			config.AccessKeyId = os.Getenv("AWS_ACCESS_KEY_ID")
+		}
+		if config.SecretAccessKey == "" {
+			log.Info("SecretAccessKey not configured, using AWS_SECRET_ACCESS_KEY")
+			config.SecretAccessKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
+		}
+		if config.EndpointUrl == "" {
+			log.Info("EndpointUrl not configured, using AWS_ENDPOINT_URL_S3")
+			config.EndpointUrl = os.Getenv("AWS_ENDPOINT_URL_S3")
+		}
+		if config.Region == "" {
+			log.Info("Region not configured, using AWS_DEFAULT_REGION")
+			config.Region = os.Getenv("AWS_DEFAULT_REGION")
+		}
+
+		plugin.service = s3.New(config.AccessKeyId, config.SecretAccessKey, config.EndpointUrl, config.Region, config.Bucket, config.Prefix, config.TimeoutSeconds)
+		return plugin, nil
 	case "local":
 		plugin.service = local.New(config.Directory)
 		return plugin, nil
 	default:
 		log.Error(fmt.Sprintf("Invalid configuration: Service %s is unknown", config.Service))
 	}
-	return next, fmt.Errorf("Invalid configuration: %v", config)
+	return next, fmt.Errorf("invalid configuration: %v", config)
 }
 
 func (plugin S3Plugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) {

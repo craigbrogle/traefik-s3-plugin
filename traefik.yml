@@ -8,5 +8,5 @@ providers:
 
 experimental:
   localPlugins:
-    example:
+    traefik-s3-plugin:
       moduleName: github.com/craigbrogle/traefik-s3-plugin
